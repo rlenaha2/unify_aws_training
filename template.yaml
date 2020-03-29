@@ -20,6 +20,7 @@ Resources:
       Policies:
         - S3CrudPolicy:
             BucketName: !Ref "TextBucket"
+            
 
   CreateWordCloudFunction:
     Type: AWS::Serverless::Function 
@@ -27,18 +28,37 @@ Resources:
       CodeUri: code/
       Handler: lambda_generate_wordcloud.lambda_handler
       Runtime: python3.6
-      Timeout: 60
+      Timeout: 300
       Environment:
         Variables:
           s3bucketname: !Ref "TextBucket"
+          dynamotable: !Ref "SummaryTable"
       Policies:
         - S3CrudPolicy:
             BucketName: !Ref "TextBucket"
+        - DynamoDBCrudPolicy:
+            TableName: !Ref "SummaryTable"
+
 
   TextBucket:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: wordcloud-bucket-3212020
+      
+  SummaryTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: summary_table 
+      AttributeDefinitions:
+      - AttributeName: id
+        AttributeType: S
+      KeySchema:
+      - AttributeName: id
+        KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+     
       
   StatesExecutionRole:
     Type: "AWS::IAM::Role"
@@ -77,13 +97,12 @@ Resources:
                   "GetText": {
                       "Type": "Task",
                       "Resource": "${lambdaArn}",
-                      "ResultPath": "$.result",
+                      "ResultPath": "$.url",
                       "Next": "CreateWordCloud"
                   },
                   "CreateWordCloud": {
                       "Type": "Task",
                       "Resource": "${wordcloudArn}",
-                      "ResultPath": "$.iterator",
                       "Next": "Done"
                   },
                   "Done": {
