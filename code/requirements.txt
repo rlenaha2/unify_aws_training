@@ -1,4 +1,0 @@
-wordcloud
-requests
-boto3
-bs4
