@@ -1,0 +1,120 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  sam-app
+
+  SAM Template for scraping a website and creating a wordcloud
+  
+  
+Resources:
+  GetTextFunction:
+    Type: AWS::Serverless::Function 
+    Properties:
+      CodeUri: code/
+      Handler: lambda_scraper.lambda_handler
+      Runtime: python3.6
+      Timeout: 20
+      Environment:
+        Variables:
+          s3bucketname: !Ref "TextBucket"
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref "TextBucket"
+            
+
+  CreateWordCloudFunction:
+    Type: AWS::Serverless::Function 
+    Properties:
+      CodeUri: code/
+      Handler: lambda_generate_wordcloud.lambda_handler
+      Runtime: python3.6
+      Timeout: 300
+      Environment:
+        Variables:
+          s3bucketname: !Ref "TextBucket"
+          dynamotable: !Ref "SummaryTable"
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref "TextBucket"
+        - DynamoDBCrudPolicy:
+            TableName: !Ref "SummaryTable"
+
+
+  TextBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: wordcloud-bucket-5202020
+      
+  SummaryTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: summary_table 
+      AttributeDefinitions:
+      - AttributeName: id
+        AttributeType: S
+      KeySchema:
+      - AttributeName: id
+        KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+     
+      
+  StatesExecutionRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service:
+                - !Sub states.${AWS::Region}.amazonaws.com
+            Action: "sts:AssumeRole"
+      Path: "/"
+      Policies:
+        - PolicyName: StatesExecutionPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "lambda:InvokeFunction"
+                Resource: "*"
+
+  MyStateMachine:
+    Type: "AWS::StepFunctions::StateMachine"
+    Properties:
+      StateMachineName: WordCloudGenerator
+      DefinitionString:
+        !Sub
+          - |-
+            {
+              "Comment": "Get text from a website to create wordcloud",
+              "StartAt": "GetText",
+              "States": {
+                  
+                  "GetText": {
+                      "Type": "Task",
+                      "Resource": "${lambdaArn}",
+                      "ResultPath": "$.outputdict",
+                      "Next": "CreateWordCloud"
+                  },
+                  "CreateWordCloud": {
+                      "Type": "Task",
+                      "Resource": "${wordcloudArn}",
+                      "Next": "Done"
+                  },
+                  "Done": {
+                      "Type": "Pass",
+                      "End": true
+                    
+                  }
+              }
+
+            }
+          - lambdaArn: !GetAtt GetTextFunction.Arn
+            wordcloudArn: !GetAtt CreateWordCloudFunction.Arn
+      RoleArn: !GetAtt [ StatesExecutionRole, Arn ]
+
+
