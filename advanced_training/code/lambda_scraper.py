@@ -41,35 +41,34 @@ def move_old_file_to_history():
 
 def lambda_handler(event, context):
     s3 = boto3.resource('s3')       
-
-    logger.info(f"entered lambda to scrape website")
     
 # =============================================================================
  
-    URL = 'https://www.unifyconsulting.com/'
-    page = requests.get(URL)
-     
-    soup = BeautifulSoup(page.content, 'html.parser') 
-    whitelist = ['p'] 
-    text_elements = [t for t in soup.find_all(text=True) if t.parent.name in whitelist]
-    text_elements = " ".join(text_elements)
-    text_elements = re.sub('\n', '', text_elements)
-    text_elements = " ".join(text_elements.split())
- 
- 
-# =============================================================================
-
-#    URL= 'https://docs.python.org/3/glossary.html'
+#    URL = 'https://www.unifyconsulting.com/'
 #    page = requests.get(URL)
-#    
-#    soup = BeautifulSoup(page.content, 'html.parser')
-#    whitelist = ['p' ]    
+#     
+#    soup = BeautifulSoup(page.content, 'html.parser') 
+#    whitelist = ['p'] 
 #    text_elements = [t for t in soup.find_all(text=True) if t.parent.name in whitelist]
-#    text_elements = ' '.join(text_elements)
+#    text_elements = " ".join(text_elements)
 #    text_elements = re.sub('\n', '', text_elements)
+#    text_elements = " ".join(text_elements.split())
+ 
+ 
+# =============================================================================
+
+    URL= 'https://docs.python.org/3/glossary.html'
+    page = requests.get(URL)
+    
+    soup = BeautifulSoup(page.content, 'html.parser')
+    whitelist = ['p' ]    
+    text_elements = [t for t in soup.find_all(text=True) if t.parent.name in whitelist]
+    text_elements = ' '.join(text_elements)
+    text_elements = re.sub('\n', '', text_elements)
     
 # =============================================================================
     
+    logger.info(f"Lambda to scrape website {URL}")
     logger.info(f"Uploading to {s3_bucket_name}")
     move_old_file_to_history ()   
 
