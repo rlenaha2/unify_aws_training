@@ -12,7 +12,7 @@ Resources:
     Properties:
       CodeUri: code/
       Handler: lambda_scraper.lambda_handler
-      Runtime: python3.6
+      Runtime: python3.7
       Timeout: 20
       Environment:
         Variables:
@@ -27,7 +27,7 @@ Resources:
     Properties:
       CodeUri: code/
       Handler: lambda_generate_wordcloud.lambda_handler
-      Runtime: python3.6
+      Runtime: python3.7
       Timeout: 300
       Environment:
         Variables:
@@ -38,6 +38,8 @@ Resources:
             BucketName: !Ref "TextBucket"
         - DynamoDBCrudPolicy:
             TableName: !Ref "SummaryTable"
+        - ComprehendFullAccess 
+        
 
 
   TextBucket:

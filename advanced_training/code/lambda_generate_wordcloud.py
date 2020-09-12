@@ -110,7 +110,7 @@ def store_wordclouds(wordcloud):
     return file_uuid
 
 
-def store_in_dynamo(file_uuid, event, top_5_words):
+def store_in_dynamo(file_uuid, event, top_5_words, sentiment):
     dynamodb = boto3.resource('dynamodb')
     
     d = datetime.datetime.today()
@@ -121,7 +121,8 @@ def store_in_dynamo(file_uuid, event, top_5_words):
             'url' : event["outputdict"]["url"],
             'text_uuid': event["outputdict"]['uuid'],
             'date': str(d),
-            'top_5_words': set(top_5_words)})
+            'top_5_words': set(top_5_words),
+            'sentiment': sentiment})
 
 
 def lambda_handler(event, context):
@@ -129,6 +130,7 @@ def lambda_handler(event, context):
     logger.info(f's3 bucket name {s3_bucket_name}')
 
     val = get_text_file()
+    logger.info(f'val {val}')
     word_count_dict, comment_words, stopwords = generate_words(val)
     top_5_words, word_count = create_top_5(word_count_dict)
 
@@ -137,6 +139,12 @@ def lambda_handler(event, context):
       
     move_old_file_to_history()
     wordcloud = create_wordcloud(stopwords, comment_words)
-    file_uuid = store_wordclouds(wordcloud)    
+    file_uuid = store_wordclouds(wordcloud)   
+    
+    comprehend = boto3.client('comprehend', region_name='us-west-2')
+    sentiments = comprehend.detect_sentiment(Text=comment_words[:4980], LanguageCode='en')
+    logger.info(f'sentiment response {sentiments}')
+    
+    sentiment = sentiments["Sentiment"]
 
-    store_in_dynamo(file_uuid, event, top_5_words)
+    store_in_dynamo(file_uuid, event, top_5_words, sentiment)
